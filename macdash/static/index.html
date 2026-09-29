@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>macdash</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1' y='2' width='14' height='10' rx='2' fill='%232a78d6'/><rect x='5' y='13' width='6' height='1.5' rx='.75' fill='%232a78d6'/></svg>">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="login" class="login" hidden>
+  <form id="login-form" class="card login-card">
+    <h1>macdash</h1>
+    <p class="muted">Enter the access token (run <code>macdash --print-token</code> or read <code>~/.config/macdash/token</code>).</p>
+    <input id="login-token" type="password" placeholder="Token" autocomplete="current-password" required>
+    <button class="btn primary" type="submit">Sign in</button>
+    <p id="login-error" class="error"></p>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot" id="live-dot" title="live"></span>
+      <strong id="hostname">macdash</strong>
+      <span class="muted small" id="subtitle"></span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="overview" class="active">Overview</button>
+      <button data-tab="processes">Processes</button>
+      <button data-tab="services">Services</button>
+      <button data-tab="logs">Logs</button>
+      <button data-tab="system">System</button>
+    </nav>
+    <div class="top-actions">
+      <button class="btn ghost small" id="theme-toggle" title="Toggle theme">◐</button>
+      <button class="btn ghost small" id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============================== OVERVIEW -->
+    <section id="tab-overview" class="tab active">
+      <div class="tiles" id="tiles"></div>
+
+      <div class="row-head">
+        <h2>History</h2>
+        <div class="seg" id="range">
+          <button data-range="300">5m</button>
+          <button data-range="900" class="active">15m</button>
+          <button data-range="3600">1h</button>
+        </div>
+      </div>
+      <div class="charts" id="charts"></div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><h3>CPU cores</h3><span class="muted small" id="freqs"></span></div>
+          <div id="cores" class="cores"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Top processes</h3><button class="btn ghost small" data-goto="processes">All →</button></div>
+          <table class="tbl compact" id="top-procs"><tbody></tbody></table>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Storage</h3></div>
+          <div id="disks"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Thermals, fans &amp; power</h3></div>
+          <div id="thermals"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== PROCESSES -->
+    <section id="tab-processes" class="tab">
+      <div class="toolbar">
+        <input id="proc-filter" type="search" placeholder="Filter by name, pid, user…">
+        <label class="check"><input type="checkbox" id="proc-mine"> Only mine</label>
+        <label class="check"><input type="checkbox" id="proc-pause"> Pause</label>
+        <span class="muted small" id="proc-count"></span>
+      </div>
+      <div class="card flush">
+        <div class="table-wrap">
+          <table class="tbl sortable" id="proc-table">
+            <thead><tr>
+              <th data-key="pid" class="num">PID</th>
+              <th data-key="name">Name</th>
+              <th data-key="user">User</th>
+              <th data-key="cpu" class="num">CPU %</th>
+              <th data-key="rss" class="num">Memory</th>
+              <th data-key="threads" class="num">Threads</th>
+              <th data-key="started" class="num">Uptime</th>
+              <th data-key="status">State</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== SERVICES -->
+    <section id="tab-services" class="tab">
+      <div class="toolbar">
+        <input id="svc-filter" type="search" placeholder="Filter services…">
+        <label class="check"><input type="checkbox" id="svc-apple"> Show Apple / system agents</label>
+        <button class="btn small" id="svc-refresh">Refresh</button>
+        <button class="btn small primary" id="svc-new">+ New agent</button>
+      </div>
+      <div class="card flush">
+        <div class="table-wrap">
+          <table class="tbl" id="svc-table">
+            <thead><tr><th>State</th><th>Label</th><th>Scope</th><th class="num">PID</th><th class="num">Last exit</th><th>Flags</th><th>Program</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== LOGS -->
+    <section id="tab-logs" class="tab">
+      <div class="seg" id="log-mode">
+        <button data-mode="unified" class="active">Unified log</button>
+        <button data-mode="files">Log files</button>
+      </div>
+
+      <div id="log-unified">
+        <form class="toolbar wrap" id="log-form">
+          <input name="process" placeholder="Process (e.g. llama-server)">
+          <input name="subsystem" placeholder="Subsystem prefix (com.apple.…)">
+          <input name="text" placeholder="Message contains…">
+          <select name="minutes" title="Time range">
+            <option value="1">Last 1m</option><option value="5" selected>Last 5m</option>
+            <option value="15">Last 15m</option><option value="60">Last 1h</option>
+            <option value="360">Last 6h</option><option value="1440">Last 24h</option>
+          </select>
+          <select name="level" title="Minimum level">
+            <option value="default">Default+</option><option value="info">Info+</option><option value="debug">Debug+</option>
+          </select>
+          <label class="check"><input type="checkbox" name="errors"> Errors/faults only</label>
+          <details class="raw-pred"><summary class="small muted">Raw predicate</summary>
+            <input name="raw" placeholder='e.g. sender == "kernel"'>
+          </details>
+          <button class="btn primary" type="submit">Search</button>
+          <button class="btn" type="button" id="log-live">▶ Live</button>
+        </form>
+        <div class="muted small" id="log-status"></div>
+        <div class="card flush"><div class="logview" id="log-output"></div></div>
+      </div>
+
+      <div id="log-files" hidden>
+        <div class="split">
+          <div class="card flush file-list">
+            <input id="file-filter" type="search" placeholder="Filter files…">
+            <ul id="file-list"></ul>
+          </div>
+          <div class="card flush file-view">
+            <div class="toolbar">
+              <strong id="file-name" class="mono small ellipsis">Select a file</strong>
+              <input id="file-grep" type="search" placeholder="Highlight / filter…">
+              <label class="check"><input type="checkbox" id="file-follow" checked> Follow</label>
+              <label class="check"><input type="checkbox" id="file-wrap"> Wrap</label>
+            </div>
+            <pre class="logview mono" id="file-output"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== SYSTEM -->
+    <section id="tab-system" class="tab">
+      <div class="grid2">
+        <div class="card"><div class="card-head"><h3>Machine</h3></div><dl class="kv" id="sys-info"></dl></div>
+        <div class="card"><div class="card-head"><h3>Battery</h3></div><dl class="kv" id="sys-battery"></dl></div>
+        <div class="card"><div class="card-head"><h3>Network interfaces</h3></div><table class="tbl compact" id="sys-ifaces"><tbody></tbody></table></div>
+        <div class="card"><div class="card-head"><h3>Listening TCP ports</h3></div><table class="tbl compact" id="sys-ports"><tbody></tbody></table></div>
+        <div class="card"><div class="card-head"><h3>All temperature sensors</h3></div><table class="tbl compact" id="sys-sensors"><tbody></tbody></table></div>
+        <div class="card"><div class="card-head"><h3>Power settings</h3></div>
+          <pre class="mono small pre" id="sys-pmset"></pre>
+          <details><summary class="small">Sleep assertions</summary><pre class="mono small pre" id="sys-assert"></pre></details>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- drawers / dialogs -->
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-backdrop" data-close></div>
+  <aside class="drawer-panel">
+    <div class="drawer-head"><h2 id="drawer-title"></h2><button class="btn ghost" data-close>✕</button></div>
+    <div id="drawer-body"></div>
+  </aside>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="/static/charts.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
